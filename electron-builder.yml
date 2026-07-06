@@ -1,0 +1,24 @@
+appId: com.malachite.app
+productName: Malachite
+icon: assets/icon.png
+directories:
+  output: release
+files:
+  - dist/**/*
+  - electron/**/*
+  - assets/icon.png
+extraResources:
+  - from: build
+    to: build
+    filter:
+      - "**/*"
+  - from: assets/icon.png
+    to: assets/icon.png
+win:
+  target: nsis
+mac:
+  target: dmg
+  category: public.app-category.utilities
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

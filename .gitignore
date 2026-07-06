@@ -1,0 +1,8 @@
+node_modules/
+dist/
+release/
+build/yt-dlp
+build/yt-dlp.exe
+yt-dlp-master/
+.DS_Store
+*.log
