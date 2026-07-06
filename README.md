@@ -52,6 +52,43 @@ Packaged apps resolve the binary from `resources/build/` via electron-builder `e
 
 **Note:** macOS `.dmg` builds require a Mac. Windows `.exe` builds run on Windows.
 
+## macOS setup and DMG build
+
+Installers are **not** stored in the GitHub repo. You build the `.dmg` locally on a Mac.
+
+### Prerequisites
+
+- **Node.js 20+**
+- **ffmpeg** on your PATH: `brew install ffmpeg`
+- Clone the repo and `cd` into it before running any `npm` commands
+
+```bash
+git clone https://github.com/fosixty/GoldKit-Malachite.git
+cd GoldKit-Malachite
+```
+
+### Build the DMG
+
+```bash
+npm install
+npm run fetch-ytdlp
+npm run dist:mac
+```
+
+The installer appears in `release/` (e.g. `release/Malachite-1.0.0.dmg`).
+
+### First launch on macOS
+
+Unsigned builds may trigger Gatekeeper. Right-click the app → **Open** (normal for private/internal apps without Apple notarization).
+
+### Run from source (no installer)
+
+```bash
+npm install
+npm run fetch-ytdlp
+npm run dev
+```
+
 ## Features
 
 - URL input with download / cancel
