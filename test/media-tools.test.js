@@ -17,6 +17,7 @@ const {
   getPlatformKeys,
 } = require('../scripts/ffmpeg-assets');
 const { terminateProcessTree } = require('../electron/process-control');
+const { getSourceStagingPath } = require('../scripts/fetch-ffmpeg');
 
 function writeMockBinary(filePath, platform, arch) {
   const header = Buffer.alloc(4096);
@@ -152,6 +153,14 @@ test('FFmpeg archives, binaries, source, architectures, and licenses are pinned'
   assert.match(SOURCE_ASSET.sha256, /^[a-f0-9]{64}$/);
 });
 
+test('FFmpeg source is staged on the destination filesystem before rename', () => {
+  const destination = path.join('D:', 'checkout', 'build', 'ffmpeg', 'source', SOURCE_ASSET.filename);
+  const stagingPath = getSourceStagingPath(destination, 4242);
+
+  assert.equal(path.dirname(stagingPath), path.dirname(destination));
+  assert.match(path.basename(stagingPath), /^\.ffmpeg-8\.1\.2\.tar\.xz\.4242\.tmp$/);
+});
+
 test('packaging includes external FFmpeg resources and process spawning never enables a shell', () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')
@@ -172,6 +181,10 @@ test('packaging includes external FFmpeg resources and process spawning never en
     packageJson.build.mac.extraResources.some(
       (item) => item.from === 'build/ffmpeg/darwin-arm64'
     )
+  );
+  assert.equal(
+    packageJson.build.mac.x64ArchFiles,
+    'Contents/Resources/build/ffmpeg/**/*'
   );
 
   const runnerSource = fs.readFileSync(path.join(__dirname, '..', 'electron', 'ytdlp.js'), 'utf8');

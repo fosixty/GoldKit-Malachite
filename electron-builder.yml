@@ -47,6 +47,7 @@ mac:
   artifactName: Malachite-v${version}-macOS.${ext}
   category: public.app-category.utilities
   hardenedRuntime: true
+  x64ArchFiles: Contents/Resources/build/ffmpeg/**/*
   extraResources:
     - from: build/yt-dlp
       to: build/yt-dlp

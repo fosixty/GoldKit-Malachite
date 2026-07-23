@@ -145,20 +145,30 @@ function verifiedToolExists(platformKey, tool) {
   return verified;
 }
 
-async function ensureSource(tempDirectory) {
+function getSourceStagingPath(destination, pid = process.pid) {
+  return path.join(path.dirname(destination), `.${path.basename(destination)}.${pid}.tmp`);
+}
+
+async function ensureSource() {
   const sourceDirectory = path.join(BUILD_DIR, 'source');
   const destination = path.join(sourceDirectory, SOURCE_ASSET.filename);
   if (fs.existsSync(destination) && hashesMatch(sha256File(destination), SOURCE_ASSET.sha256)) {
     return;
   }
 
-  const temporarySource = path.join(tempDirectory, SOURCE_ASSET.filename);
-  await downloadVerified(SOURCE_ASSET, temporarySource);
   fs.mkdirSync(sourceDirectory, { recursive: true });
-  if (fs.existsSync(destination)) {
-    fs.rmSync(destination);
+  const temporarySource = getSourceStagingPath(destination);
+  try {
+    await downloadVerified(SOURCE_ASSET, temporarySource);
+    if (fs.existsSync(destination)) {
+      fs.rmSync(destination);
+    }
+    fs.renameSync(temporarySource, destination);
+  } finally {
+    if (fs.existsSync(temporarySource)) {
+      fs.rmSync(temporarySource);
+    }
   }
-  fs.renameSync(temporarySource, destination);
 }
 
 async function installFfmpeg({
@@ -172,7 +182,7 @@ async function installFfmpeg({
 
   console.log(`Preparing pinned FFmpeg and FFprobe ${FFMPEG_VERSION}: ${platformKeys.join(', ')}`);
   try {
-    await ensureSource(tempDirectory);
+    await ensureSource();
 
     for (const platformKey of platformKeys) {
       const asset = PLATFORM_ASSETS[platformKey];
@@ -211,6 +221,7 @@ if (require.main === module) {
 module.exports = {
   ALLOWED_DOWNLOAD_HOSTS,
   BUILD_DIR,
+  getSourceStagingPath,
   installFfmpeg,
   sha256File,
 };
