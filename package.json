@@ -1,16 +1,30 @@
 {
   "name": "malachite",
   "version": "1.0.0",
-  "description": "Malachite — private Electron app wrapping yt-dlp for studio use",
+  "description": "Malachite — an open-source Electron interface for yt-dlp",
+  "author": "Mitchell Gendron",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fosixty/GoldKit-Malachite.git"
+  },
   "main": "electron/main.js",
   "private": true,
   "scripts": {
+    "predev": "node scripts/ensure-runtime.js",
     "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
+    "dev:reset": "node scripts/reset-dev-data.js",
     "build": "vite build",
     "fetch-ytdlp": "node scripts/fetch-ytdlp.js",
+    "fetch-ffmpeg": "node scripts/fetch-ffmpeg.js",
+    "predist": "node scripts/ensure-runtime.js",
     "dist": "npm run build && electron-builder",
-    "dist:win": "npm run build && electron-builder --win nsis",
-    "dist:mac": "npm run build && electron-builder --mac dmg"
+    "predist:win": "node scripts/ensure-runtime.js",
+    "dist:win": "npm run build && electron-builder --win nsis --x64",
+    "predist:mac": "node scripts/ensure-runtime.js --all-darwin",
+    "dist:mac": "npm run build && electron-builder --mac dmg --universal",
+    "release:check": "node scripts/verify-release-version.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -25,12 +39,14 @@
     "electron-builder": "^26.0.12",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "unzipper": "^0.12.5",
     "vite": "^6.3.5",
     "wait-on": "^8.0.3"
   },
   "build": {
     "appId": "com.malachite.app",
     "productName": "Malachite",
+    "copyright": "Copyright © 2026 Mitchell Gendron",
     "icon": "assets/icon.png",
     "directories": {
       "output": "release"
@@ -44,23 +60,100 @@
       {
         "from": "build",
         "to": "build",
-        "filter": ["**/*"]
+        "filter": [
+          "yt-dlp-*-source.tar.gz",
+          "ffmpeg/source/**/*"
+        ]
       },
       {
         "from": "assets/icon.png",
         "to": "assets/icon.png"
+      },
+      {
+        "from": "legal/licenses.html",
+        "to": "legal/licenses.html"
+      },
+      {
+        "from": "LEGAL.md",
+        "to": "legal/LEGAL.md"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "legal/THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "COMPLIANCE.md",
+        "to": "legal/COMPLIANCE.md"
+      },
+      {
+        "from": "LICENSE",
+        "to": "legal/LICENSE"
+      },
+      {
+        "from": "legal/yt-dlp",
+        "to": "legal/yt-dlp"
+      },
+      {
+        "from": "legal/javascript",
+        "to": "legal/javascript"
+      },
+      {
+        "from": "legal/ffmpeg",
+        "to": "legal/ffmpeg"
+      },
+      {
+        "from": "LICENSE",
+        "to": "legal/ffmpeg/COPYING.GPLv3"
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "Malachite-Setup-v${version}-windows.${ext}",
+      "extraResources": [
+        {
+          "from": "build/yt-dlp.exe",
+          "to": "build/yt-dlp.exe"
+        },
+        {
+          "from": "build/ffmpeg/win32-x64",
+          "to": "build/ffmpeg/win32-x64"
+        }
+      ]
     },
     "mac": {
       "target": "dmg",
-      "category": "public.app-category.utilities"
+      "artifactName": "Malachite-v${version}-macOS.${ext}",
+      "category": "public.app-category.utilities",
+      "extraResources": [
+        {
+          "from": "build/yt-dlp",
+          "to": "build/yt-dlp"
+        },
+        {
+          "from": "build/ffmpeg/darwin-x64",
+          "to": "build/ffmpeg/darwin-x64"
+        },
+        {
+          "from": "build/ffmpeg/darwin-arm64",
+          "to": "build/ffmpeg/darwin-arm64"
+        }
+      ]
+    },
+    "dmg": {
+      "license": "LICENSE"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "license": "LICENSE"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true
     }
   }
 }

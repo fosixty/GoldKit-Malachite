@@ -23,18 +23,43 @@ function readHistory() {
 
 function writeHistory(entries) {
   const filePath = getHistoryPath();
+  const tempPath = `${filePath}.${process.pid}.tmp`;
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(entries, null, 2), 'utf-8');
+  fs.writeFileSync(tempPath, JSON.stringify(entries, null, 2), {
+    encoding: 'utf-8',
+    mode: 0o600,
+  });
+  fs.renameSync(tempPath, filePath);
+}
+
+function sanitizeUrl(value) {
+  try {
+    const parsed = new URL(value);
+    parsed.username = '';
+    parsed.password = '';
+    parsed.hash = '';
+
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    if (hostname === 'youtube.com' || hostname === 'm.youtube.com' || hostname === 'music.youtube.com') {
+      const videoId = parsed.searchParams.get('v');
+      parsed.search = videoId ? `?v=${encodeURIComponent(videoId)}` : '';
+    } else {
+      parsed.search = '';
+    }
+
+    return parsed.href;
+  } catch {
+    return '';
+  }
 }
 
 function createEntry({ url, format, outputDir }) {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    url,
+    url: sanitizeUrl(url),
     format,
-    outputDir,
+    destinationName: typeof outputDir === 'string' ? path.basename(outputDir) : null,
     title: null,
-    outputPath: null,
     status: 'running',
     startedAt: new Date().toISOString(),
     finishedAt: null,
@@ -43,9 +68,10 @@ function createEntry({ url, format, outputDir }) {
 
 function addHistoryEntry(entry) {
   const history = readHistory();
-  history.unshift(entry);
+  const newEntry = createEntry(entry);
+  history.unshift(newEntry);
   writeHistory(history.slice(0, MAX_HISTORY));
-  return entry;
+  return newEntry;
 }
 
 function updateHistoryEntry(id, updates) {
@@ -53,7 +79,12 @@ function updateHistoryEntry(id, updates) {
   const index = history.findIndex((item) => item.id === id);
   if (index === -1) return null;
 
-  history[index] = { ...history[index], ...updates };
+  const safeUpdates = { ...updates };
+  delete safeUpdates.outputDir;
+  delete safeUpdates.outputPath;
+  delete safeUpdates.url;
+  delete safeUpdates.id;
+  history[index] = { ...history[index], ...safeUpdates };
   writeHistory(history);
   return history[index];
 }

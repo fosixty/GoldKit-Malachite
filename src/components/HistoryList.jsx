@@ -1,63 +1,90 @@
+import { MusicIcon, RetryIcon, VideoIcon } from './Icons';
+import { formatLabel } from './ProgressPanel';
+
 function formatTime(iso) {
   if (!iso) return '';
-  return new Date(iso).toLocaleString();
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(iso));
 }
 
-function statusColor(status) {
-  switch (status) {
-    case 'completed':
-      return 'text-emerald-400';
-    case 'failed':
-      return 'text-red-400';
-    case 'cancelled':
-      return 'text-amber-400';
-    case 'running':
-      return 'text-sky-400';
-    default:
-      return 'text-zinc-400';
+function sourceLabel(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return 'Media download';
   }
 }
 
-export default function HistoryList({ items, onClear }) {
+const STATUS_LABELS = {
+  completed: 'Completed',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+};
+
+export default function HistoryList({ items, hasActiveDownload, onRetry }) {
+  if (items.length === 0 && !hasActiveDownload) {
+    return (
+      <div className="empty-queue">
+        <strong>No downloads yet</strong>
+        <span>Paste a media URL above to begin.</span>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-sm text-zinc-400">History</span>
-        {items.length > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-xs text-zinc-500 hover:text-zinc-300"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-      <div className="max-h-40 overflow-y-auto rounded-md border border-zinc-800 bg-zinc-900/30">
-        {items.length === 0 ? (
-          <p className="p-3 text-sm text-zinc-600">No downloads yet</p>
-        ) : (
-          <ul className="divide-y divide-zinc-800">
-            {items.map((item) => (
-              <li key={item.id} className="px-3 py-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-zinc-200">
-                      {item.title || item.url}
-                    </p>
-                    <p className="truncate text-xs text-zinc-500">
-                      {item.format} · {formatTime(item.finishedAt || item.startedAt)}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 text-xs capitalize ${statusColor(item.status)}`}>
-                    {item.status}
-                  </span>
+    <div className="history-list">
+      {items.map((item) => {
+        const isAudio = item.format === 'audio';
+        const title = item.title || sourceLabel(item.url);
+
+        return (
+          <article className="download-row" key={item.id}>
+            <div className="media-thumbnail" aria-hidden="true">
+              {isAudio ? <MusicIcon /> : <VideoIcon />}
+            </div>
+
+            <div className="download-details">
+              <div className="download-title-line">
+                <div className="download-title-wrap">
+                  <h3 title={title}>{title}</h3>
+                  <span>{formatTime(item.finishedAt || item.startedAt)}</span>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                <span className={`status-badge status-${item.status}`}>
+                  {STATUS_LABELS[item.status] || item.status}
+                </span>
+              </div>
+
+              <div className="download-metadata">
+                <span>{formatLabel(item.format)}</span>
+                <span className="metadata-separator">·</span>
+                <span className="truncate" title={item.destinationName || ''}>
+                  {item.destinationName || 'Destination unavailable'}
+                </span>
+              </div>
+
+              <div className={`history-progress status-${item.status}`} aria-hidden="true">
+                <span />
+              </div>
+            </div>
+
+            {item.status === 'failed' && item.url && (
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => onRetry(item)}
+                aria-label={`Retry ${title}`}
+                title="Retry download"
+              >
+                <RetryIcon />
+              </button>
+            )}
+          </article>
+        );
+      })}
     </div>
   );
 }

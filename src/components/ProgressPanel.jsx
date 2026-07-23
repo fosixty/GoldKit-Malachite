@@ -1,38 +1,98 @@
+import { MusicIcon, VideoIcon, XIcon } from './Icons';
+
 const STATUS_LABELS = {
-  idle: 'Ready',
   downloading: 'Downloading',
   extracting: 'Extracting audio',
-  merging: 'Merging',
-  processing: 'Processing',
-  completed: 'Completed',
-  failed: 'Failed',
-  cancelled: 'Cancelled',
+  merging: 'Merging video and audio',
+  processing: 'Processing media',
+  retrying: 'Refreshing media request',
+  cancelling: 'Cancelling',
 };
 
-export default function ProgressPanel({ progress, status }) {
-  const percent = progress?.percent ?? 0;
-  const label = STATUS_LABELS[status] || status;
+export function formatLabel(format) {
+  const labels = {
+    audio: 'MP3 audio',
+    '720p': 'MP4 · 720p',
+    '1080p': 'MP4 · 1080p',
+    best: 'Best available',
+  };
+  return labels[format] || format;
+}
+
+function sourceLabel(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return 'Media source';
+  }
+}
+
+export default function ProgressPanel({
+  progress,
+  status,
+  title,
+  url,
+  format,
+  outputDir,
+  onCancel,
+}) {
+  const percent = Math.max(0, Math.min(progress?.percent ?? 0, 100));
+  const isAudio = format === 'audio';
+  const isCancelling = status === 'cancelling';
 
   return (
-    <div className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4">
-      <div className="mb-2 flex items-center justify-between text-sm">
-        <span className="text-zinc-300">{label}</span>
-        {progress?.percent != null && (
-          <span className="font-mono text-emerald-400">{percent.toFixed(1)}%</span>
-        )}
+    <article className="download-row active-download" aria-live="polite">
+      <div className="media-thumbnail is-active" aria-hidden="true">
+        {isAudio ? <MusicIcon /> : <VideoIcon />}
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
-        <div
-          className="h-full rounded-full bg-emerald-600 transition-all duration-300"
-          style={{ width: `${Math.min(percent, 100)}%` }}
-        />
-      </div>
-      {(progress?.speed || progress?.eta) && (
-        <div className="mt-2 flex gap-4 font-mono text-xs text-zinc-500">
-          {progress.speed && <span>{progress.speed}</span>}
-          {progress.eta && <span>ETA {progress.eta}</span>}
+
+      <div className="download-details">
+        <div className="download-title-line">
+          <div className="download-title-wrap">
+            <h3 title={title || url}>{title || 'Preparing media…'}</h3>
+            <span>{sourceLabel(url)}</span>
+          </div>
+          <span className="status-badge status-running">{STATUS_LABELS[status] || 'Working'}</span>
         </div>
-      )}
-    </div>
+
+        <div className="download-metadata">
+          <span>{formatLabel(format)}</span>
+          <span className="metadata-separator">·</span>
+          <span className="truncate" title={outputDir}>{outputDir}</span>
+        </div>
+
+        <div
+          className="progress-track"
+          role="progressbar"
+          aria-label="Download progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow={Math.round(percent)}
+        >
+          <div className="progress-value" style={{ width: `${percent}%` }} />
+        </div>
+
+        <div className="transfer-metrics">
+          <span className="transfer-size">
+            {progress?.downloadedSize && progress?.totalSize
+              ? `${progress.downloadedSize} / ${progress.totalSize}`
+              : `${percent.toFixed(1)}%`}
+          </span>
+          <span>{progress?.speed || '—'}</span>
+          <span>{progress?.eta ? `ETA ${progress.eta}` : 'ETA —'}</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="icon-button cancel-button"
+        onClick={onCancel}
+        disabled={isCancelling}
+        aria-label={isCancelling ? 'Cancelling download' : 'Cancel download'}
+        title={isCancelling ? 'Cancelling…' : 'Cancel download'}
+      >
+        <XIcon />
+      </button>
+    </article>
   );
 }

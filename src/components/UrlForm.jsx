@@ -1,4 +1,27 @@
-export default function UrlForm({ url, onUrlChange, onDownload, onCancel, isDownloading }) {
+import { useState } from 'react';
+import FormatSelect from './FormatSelect';
+import OutputPicker from './OutputPicker';
+import { DownloadIcon } from './Icons';
+
+function droppedUrl(dataTransfer) {
+  const uri = dataTransfer.getData('text/uri-list').split(/\r?\n/).find((line) => line && !line.startsWith('#'));
+  return (uri || dataTransfer.getData('text/plain')).trim();
+}
+
+export default function UrlForm({
+  url,
+  onUrlChange,
+  onDownload,
+  format,
+  onFormatChange,
+  outputDir,
+  onBrowse,
+  isDownloading,
+  errorMessage,
+  inputRef,
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!isDownloading) {
@@ -6,40 +29,84 @@ export default function UrlForm({ url, onUrlChange, onDownload, onCancel, isDown
     }
   };
 
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const nextUrl = droppedUrl(event.dataTransfer);
+    if (nextUrl) {
+      onUrlChange(nextUrl);
+      inputRef.current?.focus();
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div>
-        <label htmlFor="url" className="mb-1.5 block text-sm text-zinc-400">
-          URL
-        </label>
-        <input
-          id="url"
-          type="url"
-          placeholder="https://..."
-          value={url}
-          onChange={(e) => onUrlChange(e.target.value)}
-          disabled={isDownloading}
-          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-600 disabled:opacity-50"
-        />
+    <section
+      className={isDragging ? 'download-composer is-dragging' : 'download-composer'}
+      onDragEnter={(event) => {
+        event.preventDefault();
+        setIsDragging(true);
+      }}
+      onDragOver={(event) => event.preventDefault()}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setIsDragging(false);
+      }}
+      onDrop={handleDrop}
+    >
+      <div className="section-heading composer-heading">
+        <div>
+          <h2>New download</h2>
+          <p>Paste or drop a media URL, then choose how to save it.</p>
+        </div>
+        <kbd>Ctrl/⌘ V</kbd>
       </div>
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={isDownloading || !url.trim()}
-          className="rounded-md bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-        >
-          Download
-        </button>
-        {isDownloading && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-md border border-zinc-600 bg-zinc-800 px-5 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
-          >
-            Cancel
-          </button>
+
+      <form onSubmit={handleSubmit}>
+        <div className="field-group url-field">
+          <label htmlFor="url">Media URL</label>
+          <input
+            ref={inputRef}
+            id="url"
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            spellCheck="false"
+            placeholder="https://www.youtube.com/watch?v=…"
+            value={url}
+            onChange={(event) => onUrlChange(event.target.value)}
+            disabled={isDownloading}
+          />
+        </div>
+
+        <div className="composer-options">
+          <FormatSelect value={format} onChange={onFormatChange} disabled={isDownloading} />
+          <OutputPicker outputDir={outputDir} onBrowse={onBrowse} disabled={isDownloading} />
+        </div>
+
+        {errorMessage && (
+          <div className="inline-error" role="alert">
+            <strong>Couldn’t download.</strong>
+            <span>{errorMessage}</span>
+          </div>
         )}
-      </div>
-    </form>
+
+        <div className="composer-actions">
+          <span>Enter starts the download</span>
+          <button
+            type="submit"
+            disabled={isDownloading || !url.trim() || !outputDir}
+            className="button button-primary"
+          >
+            <DownloadIcon />
+            {isDownloading ? 'Download in progress' : 'Download'}
+          </button>
+        </div>
+      </form>
+
+      {isDragging && (
+        <div className="drop-overlay" aria-hidden="true">
+          Drop URL to add it
+        </div>
+      )}
+    </section>
   );
 }

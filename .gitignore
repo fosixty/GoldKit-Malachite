@@ -1,8 +1,12 @@
 node_modules/
+.dev-data/
 dist/
 release/
 build/yt-dlp
 build/yt-dlp.exe
+build/yt-dlp-*-source.tar.gz
+build/ffmpeg/
+build/.ffmpeg-*/
 yt-dlp-master/
 .DS_Store
 *.log

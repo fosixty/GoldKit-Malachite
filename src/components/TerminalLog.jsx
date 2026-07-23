@@ -1,38 +1,37 @@
 import { useEffect, useRef } from 'react';
+import { ChevronIcon } from './Icons';
 
 export default function TerminalLog({ lines }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
     const el = containerRef.current;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
+    if (el) el.scrollTop = el.scrollHeight;
   }, [lines]);
 
   return (
-    <div className="flex flex-col">
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-sm text-zinc-400">Output</span>
-        <span className="font-mono text-xs text-zinc-600">{lines.length} lines</span>
-      </div>
-      <div
-        ref={containerRef}
-        className="h-48 overflow-y-auto rounded-md border border-zinc-800 bg-black p-3 font-mono text-xs leading-relaxed text-emerald-500/90"
-      >
+    <details className="activity-log">
+      <summary>
+        <span className="activity-log-label">
+          <ChevronIcon />
+          Activity log
+        </span>
+        <span>{lines.length} {lines.length === 1 ? 'line' : 'lines'}</span>
+      </summary>
+      <div ref={containerRef} className="log-output">
         {lines.length === 0 ? (
-          <span className="text-zinc-600">Waiting for output...</span>
+          <span className="log-placeholder">Process details will appear here.</span>
         ) : (
-          lines.map((entry, i) => (
+          lines.map((entry, index) => (
             <div
-              key={`${i}-${entry.line.slice(0, 40)}`}
-              className={entry.stream === 'stderr' ? 'text-amber-500/80' : ''}
+              key={`${index}-${entry.line.slice(0, 40)}`}
+              className={entry.stream === 'stderr' ? 'log-stderr' : ''}
             >
               {entry.line}
             </div>
           ))
         )}
       </div>
-    </div>
+    </details>
   );
 }

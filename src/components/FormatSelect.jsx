@@ -1,29 +1,62 @@
-const FORMATS = [
-  { value: 'audio', label: 'Audio (MP3)' },
-  { value: '720p', label: '720p' },
-  { value: '1080p', label: '1080p' },
-  { value: 'best', label: 'Best quality' },
+import { MusicIcon, VideoIcon } from './Icons';
+
+const VIDEO_QUALITIES = [
+  { value: '720p', label: '720p', detail: 'Compatible MP4' },
+  { value: '1080p', label: '1080p', detail: 'Compatible MP4' },
+  { value: 'best', label: 'Best available', detail: 'Original quality' },
 ];
 
 export default function FormatSelect({ value, onChange, disabled }) {
+  const isAudio = value === 'audio';
+
   return (
-    <div>
-      <label htmlFor="format" className="mb-1.5 block text-sm text-zinc-400">
-        Format
-      </label>
-      <select
-        id="format"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-600 disabled:opacity-50"
-      >
-        {FORMATS.map((fmt) => (
-          <option key={fmt.value} value={fmt.value}>
-            {fmt.label}
-          </option>
-        ))}
-      </select>
+    <div className="format-fields">
+      <fieldset className="field-group">
+        <legend>Media type</legend>
+        <div className="segmented-control" aria-label="Media type">
+          <button
+            type="button"
+            className={isAudio ? 'segment is-selected' : 'segment'}
+            aria-pressed={isAudio}
+            onClick={() => onChange('audio')}
+            disabled={disabled}
+          >
+            <MusicIcon />
+            Audio
+          </button>
+          <button
+            type="button"
+            className={!isAudio ? 'segment is-selected' : 'segment'}
+            aria-pressed={!isAudio}
+            onClick={() => onChange(isAudio ? '1080p' : value)}
+            disabled={disabled}
+          >
+            <VideoIcon />
+            Video
+          </button>
+        </div>
+      </fieldset>
+
+      <div className="field-group">
+        <label htmlFor="quality">Quality</label>
+        <select
+          id="quality"
+          className={isAudio ? 'is-fixed' : undefined}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled || isAudio}
+        >
+          {isAudio ? (
+            <option value="audio">MP3 audio</option>
+          ) : (
+            VIDEO_QUALITIES.map((quality) => (
+              <option key={quality.value} value={quality.value}>
+                {quality.label} · {quality.detail}
+              </option>
+            ))
+          )}
+        </select>
+      </div>
     </div>
   );
 }
