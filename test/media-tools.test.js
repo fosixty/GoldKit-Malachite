@@ -165,6 +165,9 @@ test('packaging includes external FFmpeg resources and process spawning never en
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')
   );
+  assert.match(packageJson.scripts.dist, /--publish never$/);
+  assert.match(packageJson.scripts['dist:win'], /--publish never$/);
+  assert.match(packageJson.scripts['dist:mac'], /--publish never$/);
   const buildResource = packageJson.build.extraResources.find((item) => item.from === 'build');
   assert.ok(buildResource.filter.includes('ffmpeg/source/**/*'));
   assert.ok(
