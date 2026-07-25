@@ -716,6 +716,14 @@ select.is-fixed:disabled {
   color: #d5a759;
 }
 
+.log-raw {
+  margin: 0;
+  color: #d5a759;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .log-placeholder {
   color: #596159;
 }

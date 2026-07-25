@@ -84,3 +84,49 @@ test('runner refreshes a rejected YouTube video URL once and then completes', as
   assert.equal(result.code, 0);
   assert.equal(result.cancelled, false);
 });
+
+test('runner returns a structured verification error and complete trailing stderr', async () => {
+  const rawStderr = [
+    "ERROR: Sign in to confirm you're not a bot. ",
+    'Use --cookies-from-browser or --cookies for the authentication.',
+  ].join('');
+  const logs = [];
+  const child = createChild(2000);
+  const spawnProcess = () => {
+    setImmediate(() => {
+      child.stderr.write(rawStderr.slice(0, 37));
+      child.stderr.write(rawStderr.slice(37));
+      child.stderr.end();
+      child.stdout.end();
+      child.emit('close', 1);
+    });
+    return child;
+  };
+
+  const error = await new Promise((resolve, reject) => {
+    const runner = new YtDlpRunner({
+      spawnProcess,
+      binaryPathResolver: () => path.join(process.cwd(), 'build', 'yt-dlp.exe'),
+    });
+    runner.start(
+      {
+        url: 'https://www.youtube.com/watch?v=redacted',
+        outputDir: process.cwd(),
+        format: 'audio',
+        ffmpegLocation: path.join(process.cwd(), 'build', 'ffmpeg', 'win32-x64'),
+      },
+      {
+        onLog: (entry) => logs.push(entry),
+        onProgress: () => {},
+        onDone: () => reject(new Error('Expected the runner to fail')),
+        onError: resolve,
+      }
+    );
+  });
+
+  assert.equal(error.code, 'YOUTUBE_VERIFICATION_REQUIRED');
+  assert.equal(error.exitCode, 1);
+  assert.equal(error.rawStderr, rawStderr);
+  assert.equal(error.mediaTitle, null);
+  assert.ok(logs.some((entry) => entry.stream === 'stderr' && entry.line === rawStderr));
+});

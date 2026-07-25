@@ -1,6 +1,6 @@
 {
   "name": "malachite",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Malachite — an open-source Electron interface for yt-dlp",
   "author": "Mitchell Gendron",
   "license": "GPL-3.0-or-later",

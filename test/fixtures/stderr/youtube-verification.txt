@@ -1,0 +1,2 @@
+ERROR: Sign In To Confirm You're Not A Bot.
+Use --Cookies-From-Browser or USE --COOKIES FOR THE AUTHENTICATION.

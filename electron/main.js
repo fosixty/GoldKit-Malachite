@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell } = require('electron');
 const path = require('path');
 const { YtDlpRunner } = require('./ytdlp');
+const { classifyDownloadError } = require('./download-errors');
 const { createTextContextMenuTemplate } = require('./text-context-menu');
 const {
   LEGAL_NOTICE_DETAIL,
@@ -248,8 +249,16 @@ function registerIpc() {
     try {
       mediaTools = runner.prepare();
     } catch (error) {
-      console.error('Media tools validation failed:', error.detail || error.message);
-      throw new Error(error.userMessage || 'Malachite media tools are unavailable.');
+      console.error('Media tools validation failed:', error.code || error.name);
+      send('download:error', {
+        ...classifyDownloadError({ processError: error }),
+        exitCode: null,
+        rawStderr: '',
+        mediaTitle: null,
+        outputPath: null,
+        entryId: null,
+      });
+      return null;
     }
 
     const entry = addHistoryEntry({ url, format, outputDir });
@@ -270,14 +279,14 @@ function registerIpc() {
           send('download:done', { code, cancelled, title, outputPath, entryId: activeEntryId });
           activeEntryId = null;
         },
-        onError: ({ code, message, title, outputPath }) => {
+        onError: (error) => {
           updateHistoryEntry(activeEntryId, {
             status: 'failed',
-            title,
-            outputPath,
+            title: error.mediaTitle,
+            outputPath: error.outputPath,
             finishedAt: new Date().toISOString(),
           });
-          send('download:error', { code, message, title, outputPath, entryId: activeEntryId });
+          send('download:error', { ...error, entryId: activeEntryId });
           activeEntryId = null;
         },
       }
