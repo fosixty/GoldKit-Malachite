@@ -3,9 +3,11 @@ const path = require('path');
 const { app } = require('electron');
 const { buildArgs, FORMAT_ARGS } = require('./ytdlp-args');
 const { classifyDownloadError } = require('./download-errors');
+const { resolveJavaScriptRuntime } = require('./javascript-runtime');
 const { resolveMediaTools } = require('./media-tools');
 const { terminateProcessTree } = require('./process-control');
 const { shouldRetryYouTubeMediaDownload } = require('./ytdlp-retry');
+const { sanitizeYtDlpDiagnostics } = require('./ytdlp-diagnostics');
 const MAX_LOG_LINE_LENGTH = 4096;
 const MAX_STREAM_BUFFER_LENGTH = 64 * 1024;
 
@@ -123,25 +125,30 @@ class YtDlpRunner {
   }
 
   prepare() {
-    return resolveMediaTools({
+    const common = {
       isPackaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
       appPath: app.getAppPath(),
       platform: process.platform,
       arch: process.arch,
+    };
+    const mediaTools = resolveMediaTools({
+      ...common,
       environment: process.env,
       logger: console,
     });
+    const javascriptRuntime = resolveJavaScriptRuntime(common);
+    return { ...mediaTools, javascriptRuntime };
   }
 
-  start({ url, outputDir, format, ffmpegLocation }, callbacks) {
+  start({ url, outputDir, format, ffmpegLocation, nodePath }, callbacks) {
     if (this.process) {
       throw new Error('A download is already in progress');
     }
 
     this.cancelled = false;
     const binaryPath = this.binaryPathResolver();
-    const args = buildArgs({ url, outputDir, format, ffmpegLocation });
+    const args = buildArgs({ url, outputDir, format, ffmpegLocation, nodePath });
 
     let title = null;
     let outputPath = null;
@@ -153,7 +160,7 @@ class YtDlpRunner {
       const trimmed = line.trim().slice(0, MAX_LOG_LINE_LENGTH);
       if (!trimmed) return;
 
-      callbacks.onLog({ line: trimmed, stream });
+      callbacks.onLog({ line: sanitizeYtDlpDiagnostics(trimmed), stream });
 
       const parsedTitle = parseTitleFromLog(trimmed);
       if (parsedTitle) title = parsedTitle;
@@ -250,7 +257,7 @@ class YtDlpRunner {
         callbacks.onError({
           ...error,
           exitCode: code,
-          rawStderr,
+          rawStderr: sanitizeYtDlpDiagnostics(rawStderr),
           mediaTitle: title,
           outputPath,
         });
@@ -265,7 +272,7 @@ class YtDlpRunner {
         callbacks.onError({
           ...error,
           exitCode: -1,
-          rawStderr,
+          rawStderr: sanitizeYtDlpDiagnostics(rawStderr),
           mediaTitle: title,
           outputPath,
         });

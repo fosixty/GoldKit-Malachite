@@ -67,3 +67,15 @@ test('uses the existing generic error for unknown stderr', () => {
     GENERIC_ERROR
   );
 });
+
+test('reports a YouTube media 403 without claiming every format was retried', () => {
+  const error = classifyDownloadError({
+    stderr: 'ERROR: unable to download video data: HTTP Error 403: Forbidden',
+    url: 'https://www.youtube.com/watch?v=public',
+  });
+  assert.equal(error.code, 'YOUTUBE_MEDIA_REJECTED');
+  assert.equal(
+    error.message,
+    'YouTube rejected the media request. Try again later or update Malachite if the problem continues.'
+  );
+});

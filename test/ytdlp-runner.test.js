@@ -66,6 +66,7 @@ test('runner refreshes a rejected YouTube video URL once and then completes', as
         outputDir: process.cwd(),
         format: '720p',
         ffmpegLocation: path.join(process.cwd(), 'build', 'ffmpeg', 'win32-x64'),
+        nodePath: path.join(process.cwd(), 'build', 'node', 'win32-x64', 'node.exe'),
       },
       {
         onLog: (entry) => logs.push(entry),
@@ -114,6 +115,7 @@ test('runner returns a structured verification error and complete trailing stder
         outputDir: process.cwd(),
         format: 'audio',
         ffmpegLocation: path.join(process.cwd(), 'build', 'ffmpeg', 'win32-x64'),
+        nodePath: path.join(process.cwd(), 'build', 'node', 'win32-x64', 'node.exe'),
       },
       {
         onLog: (entry) => logs.push(entry),

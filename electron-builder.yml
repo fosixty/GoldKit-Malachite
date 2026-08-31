@@ -12,7 +12,7 @@ extraResources:
   - from: build
     to: build
     filter:
-      - yt-dlp-*-source.tar.gz
+      - yt-dlp-2026.08.19-source.tar.gz
       - ffmpeg/source/**/*
   - from: assets/icon.png
     to: assets/icon.png
@@ -32,6 +32,8 @@ extraResources:
     to: legal/javascript
   - from: legal/ffmpeg
     to: legal/ffmpeg
+  - from: legal/node
+    to: legal/node
   - from: LICENSE
     to: legal/ffmpeg/COPYING.GPLv3
 win:
@@ -40,6 +42,8 @@ win:
   extraResources:
     - from: build/yt-dlp.exe
       to: build/yt-dlp.exe
+    - from: build/node/win32-x64
+      to: build/node/win32-x64
     - from: build/ffmpeg/win32-x64
       to: build/ffmpeg/win32-x64
 mac:
@@ -47,10 +51,14 @@ mac:
   artifactName: Malachite-v${version}-macOS.${ext}
   category: public.app-category.utilities
   hardenedRuntime: true
-  x64ArchFiles: Contents/Resources/build/ffmpeg/**/*
+  x64ArchFiles: Contents/Resources/build/{ffmpeg,node}/**/*
   extraResources:
     - from: build/yt-dlp
       to: build/yt-dlp
+    - from: build/node/darwin-x64
+      to: build/node/darwin-x64
+    - from: build/node/darwin-arm64
+      to: build/node/darwin-arm64
     - from: build/ffmpeg/darwin-x64
       to: build/ffmpeg/darwin-x64
     - from: build/ffmpeg/darwin-arm64

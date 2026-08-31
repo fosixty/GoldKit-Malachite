@@ -17,6 +17,11 @@ const ERROR_DEFINITIONS = Object.freeze({
     title: 'FFmpeg is unavailable',
     message: 'Required media tools are missing. Reinstall Malachite and try again.',
   }),
+  JAVASCRIPT_RUNTIME_MISSING: Object.freeze({
+    code: 'JAVASCRIPT_RUNTIME_MISSING',
+    title: 'YouTube support is unavailable',
+    message: 'A required YouTube runtime component is missing. Reinstall Malachite and try again.',
+  }),
   UNSUPPORTED_URL: Object.freeze({
     code: 'UNSUPPORTED_URL',
     title: 'Unsupported URL',
@@ -50,7 +55,7 @@ const ERROR_DEFINITIONS = Object.freeze({
   YOUTUBE_MEDIA_REJECTED: Object.freeze({
     code: 'YOUTUBE_MEDIA_REJECTED',
     title: 'Couldn’t download.',
-    message: 'YouTube rejected the media request after a retry. Try again later or update Malachite if the problem continues.',
+    message: 'YouTube rejected the media request. Try again later or update Malachite if the problem continues.',
   }),
   MEDIA_PROCESSING_FAILED: Object.freeze({
     code: 'MEDIA_PROCESSING_FAILED',
@@ -117,6 +122,12 @@ function classifyDownloadError({ stderr = '', url = '', processError = null } = 
     || /\b(?:ffmpeg|ffprobe)(?: and (?:ffmpeg|ffprobe))? (?:not found|could not be found|is not installed|is unavailable)\b|\bunable to find (?:ffmpeg|ffprobe)\b/i.test(stderr)
   ) {
     return result(ERROR_DEFINITIONS.FFMPEG_MISSING);
+  }
+
+  if (
+    ['MISSING_JAVASCRIPT_RUNTIME', 'INVALID_JAVASCRIPT_RUNTIME', 'JAVASCRIPT_RUNTIME_PERMISSION_DENIED'].includes(processCode)
+  ) {
+    return result(ERROR_DEFINITIONS.JAVASCRIPT_RUNTIME_MISSING);
   }
 
   if (/requested format is not available/i.test(stderr)) {

@@ -18,6 +18,8 @@ const {
 } = require('../electron/ytdlp-retry');
 const { createTextContextMenuTemplate } = require('../electron/text-context-menu');
 const { ASSETS, SOURCE_ASSET, YT_DLP_VERSION } = require('../scripts/fetch-ytdlp');
+const { NODE_ASSETS, NODE_VERSION, getNodePlatformKeys } = require('../scripts/node-assets');
+const { sanitizeYtDlpDiagnostics } = require('../electron/ytdlp-diagnostics');
 const {
   LEGAL_NOTICE_DETAIL,
   LEGAL_NOTICE_VERSION,
@@ -102,11 +104,18 @@ test('yt-dlp arguments ignore config and terminate options before the URL', () =
     outputDir: fs.realpathSync.native(process.cwd()),
     format: 'audio',
     ffmpegLocation,
+    nodePath: path.join(process.cwd(), 'build', 'node', 'win32-x64', 'node.exe'),
   });
 
   assert.equal(args[0], '--ignore-config');
-  assert.deepEqual(args.slice(1, 3), ['--ffmpeg-location', ffmpegLocation]);
-  assert.deepEqual(args.slice(3, 6), ['-x', '--audio-format', 'mp3']);
+  assert.equal(args[1], '--verbose');
+  assert.deepEqual(args.slice(2, 5), [
+    '--no-js-runtimes',
+    '--js-runtimes',
+    `node:${path.join(process.cwd(), 'build', 'node', 'win32-x64', 'node.exe')}`,
+  ]);
+  assert.deepEqual(args.slice(5, 7), ['--ffmpeg-location', ffmpegLocation]);
+  assert.deepEqual(args.slice(7, 10), ['-x', '--audio-format', 'mp3']);
   assert.equal(args.at(-2), '--');
   assert.equal(args.at(-1), 'https://example.com/video');
   assert.throws(() =>
@@ -115,6 +124,7 @@ test('yt-dlp arguments ignore config and terminate options before the URL', () =
       outputDir: process.cwd(),
       format: '--exec',
       ffmpegLocation,
+      nodePath: path.join(process.cwd(), 'node.exe'),
     })
   );
   assert.throws(() =>
@@ -123,6 +133,16 @@ test('yt-dlp arguments ignore config and terminate options before the URL', () =
       outputDir: process.cwd(),
       format: 'audio',
       ffmpegLocation: 'relative/path',
+      nodePath: path.join(process.cwd(), 'node.exe'),
+    })
+  );
+  assert.throws(() =>
+    buildArgs({
+      url: 'https://example.com/video',
+      outputDir: process.cwd(),
+      format: 'audio',
+      ffmpegLocation,
+      nodePath: 'relative/node.exe',
     })
   );
 });
@@ -134,13 +154,14 @@ test('compatible video arguments prefer H.264 and M4A without transcoding', () =
     outputDir: process.cwd(),
     format: '1080p',
     ffmpegLocation: path.join(process.cwd(), 'media tools'),
+    nodePath: path.join(process.cwd(), 'runtime', 'node.exe'),
   });
 
   assert.match(selector, /vcodec\^=avc1/);
   assert.match(selector, /acodec\^=mp4a/);
   assert.match(selector, /b\[ext=mp4\]/);
   assert.match(selector, /bv\*\[height<=1080\]\+ba/);
-  assert.deepEqual(args.slice(3, 5), ['-f', selector]);
+  assert.deepEqual(args.slice(7, 9), ['-f', selector]);
   assert.equal(args.includes('--recode-video'), false);
   assert.equal(args.includes('--exec'), false);
 });
@@ -190,6 +211,41 @@ test('yt-dlp build assets are pinned with SHA-256 hashes', () => {
   }
   assert.match(SOURCE_ASSET.url, new RegExp(`/releases/download/${YT_DLP_VERSION}/`));
   assert.match(SOURCE_ASSET.sha256, /^[a-f0-9]{64}$/);
+});
+
+test('Node.js runtime assets are pinned for every supported desktop target', () => {
+  assert.match(NODE_VERSION, /^\d+\.\d+\.\d+$/);
+  assert.deepEqual(getNodePlatformKeys('darwin', 'x64', true), ['darwin-x64', 'darwin-arm64']);
+  assert.deepEqual(getNodePlatformKeys('win32', 'x64'), ['win32-x64']);
+  assert.throws(() => getNodePlatformKeys('win32', 'arm64'));
+  for (const asset of Object.values(NODE_ASSETS)) {
+    assert.match(asset.url, new RegExp(`/dist/v${NODE_VERSION}/`));
+    assert.match(asset.archiveSha256, /^[a-f0-9]{64}$/);
+    assert.match(asset.executableSha256, /^[a-f0-9]{64}$/);
+    assert.match(asset.entry, new RegExp(`^node-v${NODE_VERSION.replaceAll('.', '\\.')}-.+/node(?:\\.exe)?$`));
+  }
+
+  const license = fs.readFileSync(path.join(__dirname, '..', 'legal', 'node', 'LICENSE'), 'utf8');
+  assert.match(license, /The externally maintained libraries used by Node\.js are:/);
+  assert.match(license, /- V8, located at deps\/v8/);
+  assert.match(license, /- OpenSSL, located at deps\/openssl/);
+  assert.match(license, /- ICU, located at deps\/icu-small/);
+});
+
+test('yt-dlp diagnostics redact signed media URLs, headers, and user profile paths', () => {
+  const homeDirectory = 'C:\\Users\\Sensitive Name';
+  const diagnostics = sanitizeYtDlpDiagnostics([
+    '[debug] Invoking http downloader on "https://rr1.googlevideo.com/videoplayback?ip=1.2.3.4&sig=secret"',
+    '[debug] CDN URL "https://cdn.example/video?X-Amz-Credential=user%2Fscope&X-Amz-Signature=secret#token"',
+    'Authorization: Bearer secret',
+    'Cookie: SID=secret',
+    `Output: ${homeDirectory}\\Downloads\\example.mp4`,
+  ].join('\n'), { homeDirectory });
+
+  assert.match(diagnostics, /googlevideo\.com\/videoplayback\?\[redacted\]/);
+  assert.match(diagnostics, /cdn\.example\/video\?X-Amz-Credential=%5Bredacted%5D&X-Amz-Signature=%5Bredacted%5D#\[redacted\]/);
+  assert.doesNotMatch(diagnostics, /1\.2\.3\.4|user%2Fscope|Bearer secret|SID=secret|Sensitive Name|#token/);
+  assert.match(diagnostics, /%USERPROFILE%\\Downloads/);
 });
 
 test('recognizes YouTube URLs without matching lookalike domains', () => {

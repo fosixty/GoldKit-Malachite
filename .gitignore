@@ -6,6 +6,7 @@ build/yt-dlp
 build/yt-dlp.exe
 build/yt-dlp-*-source.tar.gz
 build/ffmpeg/
+build/node/
 build/.ffmpeg-*/
 yt-dlp-master/
 .DS_Store

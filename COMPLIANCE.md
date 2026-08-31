@@ -1,6 +1,6 @@
 # Service Policy and Distribution Compliance
 
-Last reviewed: July 22, 2026
+Last reviewed: August 30, 2026
 
 This document records the project's compliance posture. It is not legal advice
 and does not guarantee that every use is lawful or permitted by a website's terms.
@@ -45,15 +45,35 @@ The yt-dlp source repository is released under the Unlicense. Its standalone
 PyInstaller executables include separately licensed components, including
 GPLv3-or-later components. The pinned release and its exact notices are:
 
-- Release: https://github.com/yt-dlp/yt-dlp/releases/tag/2026.06.09
+- Release: https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19
 - Source license: `legal/yt-dlp/LICENSE`
 - Compiled third-party notices: `legal/yt-dlp/THIRD_PARTY_LICENSES.txt`
-- Pinned source archive: `build/yt-dlp-2026.06.09-source.tar.gz`
+- Pinned source archive: `build/yt-dlp-2026.08.19-source.tar.gz`
 
 The build script verifies SHA-256 digests for both the executable and source
 archive. Installers include these materials alongside the separate executable.
 Release maintainers must preserve them and re-review the notices whenever the
 pinned yt-dlp version changes.
+
+## Node.js distribution
+
+Malachite bundles Node.js 24.20.0 LTS as the supported external JavaScript runtime
+used by yt-dlp's EJS challenge solver. Official Windows x64, macOS x64, and macOS
+arm64 archives are downloaded from nodejs.org. The build verifies SHA-256 hashes
+for each complete archive and extracted executable, and Malachite invokes only the
+absolute packaged executable path.
+
+Node.js is distributed under the MIT License and incorporates externally maintained
+libraries under their respective licenses. The official binary archives contain a
+consolidated `LICENSE` file with Node.js's copyright/license and the applicable
+third-party notices. The exact file from the pinned 24.20.0 archive is included at
+`legal/node/LICENSE`. Release maintainers must update that file from the same
+official archive whenever Node.js is updated.
+
+yt-dlp 2026.08.19 invokes Node.js with the stable permission model enabled and no
+filesystem, network, child-process, native-addon, worker, WASI, or inspector grants.
+This reduces accidental access by the trusted, bundled solver scripts; Node.js
+documents that its permission model is not a security boundary for malicious code.
 
 ## FFmpeg and FFprobe distribution
 
@@ -84,12 +104,13 @@ privacy rights, trademarks, or anti-circumvention law.
 Before each public binary release:
 
 1. Run `npm ci`, `npm test`, and `npm audit`.
-2. Run `npm run fetch-ytdlp` and `npm run fetch-ffmpeg`; verify every pinned
+2. Run `npm run fetch-ytdlp`, `npm run fetch-node`, and `npm run fetch-ffmpeg`; verify every pinned
    binary, archive, and source hash.
 3. Confirm the installer contains `LICENSE`, `LEGAL.md`, `COMPLIANCE.md`,
    `THIRD_PARTY_NOTICES.md`, the exact yt-dlp notices, FFmpeg build information,
-   applicable license texts, and both source archives.
-4. Re-review YouTube, Google, yt-dlp, FFmpeg, and dependency terms for changes.
+   Node.js's consolidated license/notices, applicable license texts, and both
+   source archives.
+4. Re-review YouTube, Google, yt-dlp, Node.js, FFmpeg, and dependency terms for changes.
 5. Sign the Windows release and sign and notarize the macOS release.
 
 The `dist`, `dist:win`, and `dist:mac` scripts run the verifier automatically

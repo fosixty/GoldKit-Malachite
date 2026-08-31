@@ -245,9 +245,9 @@ function registerIpc() {
       throw new Error('YouTube download cancelled: authorization was not confirmed');
     }
 
-    let mediaTools;
+    let preparedTools;
     try {
-      mediaTools = runner.prepare();
+      preparedTools = runner.prepare();
     } catch (error) {
       console.error('Media tools validation failed:', error.code || error.name);
       send('download:error', {
@@ -265,7 +265,13 @@ function registerIpc() {
     activeEntryId = entry.id;
 
     runner.start(
-      { url, outputDir, format, ffmpegLocation: mediaTools.directory },
+      {
+        url,
+        outputDir,
+        format,
+        ffmpegLocation: preparedTools.directory,
+        nodePath: preparedTools.javascriptRuntime.executable,
+      },
       {
         onLog: (data) => send('download:log', data),
         onProgress: (data) => send('download:progress', data),
