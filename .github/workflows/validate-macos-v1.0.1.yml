@@ -2,6 +2,12 @@ name: Validate macOS v1.0.1 DMG
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "v1.0.1 source commit, branch, or tag to package"
+        required: true
+        default: "6ce072b5ea1f71194d61ce172d9ccf5efbd2f102"
+        type: string
 
 concurrency:
   group: validate-macos-v1.0.1-${{ github.ref }}
@@ -29,6 +35,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
