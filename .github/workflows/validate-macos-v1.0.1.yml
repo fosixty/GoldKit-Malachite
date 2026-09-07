@@ -65,8 +65,14 @@ jobs:
 
           mount_point="$RUNNER_TEMP/malachite-v1.0.1-dmg"
           mkdir -p "$mount_point"
-          hdiutil attach "$DMG_PATH" -readonly -nobrowse -acceptlicense -mountpoint "$mount_point"
-          trap 'hdiutil detach "$mount_point"' EXIT
+          # Electron Builder embeds an SLA in the DMG. macOS 14 hdiutil attach has no
+          # -acceptlicense (the runner reports "unknown option"). Convert to a DVD/CD-R
+          # master (UDTO) so attach does not prompt for the SLA, then mount the CDR
+          # with documented flags. The original DMG is still verified below.
+          cdr_path="$RUNNER_TEMP/malachite-v1.0.1"
+          hdiutil convert "$DMG_PATH" -format UDTO -o "$cdr_path"
+          hdiutil attach "$cdr_path.cdr" -readonly -nobrowse -mountpoint "$mount_point"
+          trap 'hdiutil detach "$mount_point"; rm -f "$cdr_path.cdr"' EXIT
 
           app="$mount_point/Malachite.app"
           resources="$app/Contents/Resources"
