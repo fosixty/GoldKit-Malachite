@@ -65,7 +65,7 @@ jobs:
 
           mount_point="$RUNNER_TEMP/malachite-v1.0.1-dmg"
           mkdir -p "$mount_point"
-          hdiutil attach "$DMG_PATH" -readonly -nobrowse -mountpoint "$mount_point"
+          hdiutil attach "$DMG_PATH" -readonly -nobrowse -acceptlicense -mountpoint "$mount_point"
           trap 'hdiutil detach "$mount_point"' EXIT
 
           app="$mount_point/Malachite.app"
