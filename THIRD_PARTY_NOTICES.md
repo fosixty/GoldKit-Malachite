@@ -1,7 +1,7 @@
 # Third-Party Notices
 
 Malachite is an independent project and is not affiliated with YouTube, Google,
-the yt-dlp project, or the FFmpeg project.
+the yt-dlp project, the Node.js project, or the FFmpeg project.
 
 ## yt-dlp
 
@@ -15,6 +15,20 @@ The PyInstaller-bundled executables used for Windows and macOS include
 GPLv3-or-later components. Malachite distributions include the exact upstream
 license notices for the pinned yt-dlp release under `legal/yt-dlp/` and include
 the pinned upstream source archive under `build/`.
+
+## Node.js
+
+Malachite bundles Node.js 24.20.0 LTS as a separate executable solely to provide
+yt-dlp's supported JavaScript challenge-solving runtime. Users of packaged builds
+do not need to install Node.js. Official archives and extracted executables for
+Windows x64, macOS x64, and macOS arm64 are pinned by SHA-256 in
+`scripts/node-assets.js`.
+
+Node.js is licensed under the MIT License and incorporates externally maintained
+libraries under their respective licenses. The official binary distribution's
+consolidated Node.js and third-party license file is included verbatim at
+`legal/node/LICENSE`. Exact archive and executable hashes and update requirements
+are recorded in `legal/node/BUILD_INFO.md`.
 
 ## FFmpeg
 

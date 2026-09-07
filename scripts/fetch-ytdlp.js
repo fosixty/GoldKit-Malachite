@@ -3,7 +3,7 @@ const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
 
-const YT_DLP_VERSION = '2026.06.09';
+const YT_DLP_VERSION = '2026.08.19';
 const RELEASE_BASE = `https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}`;
 const BUILD_DIR = path.join(__dirname, '..', 'build');
 const MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
@@ -16,23 +16,23 @@ const ASSETS = {
   win32: {
     url: `${RELEASE_BASE}/yt-dlp.exe`,
     filename: 'yt-dlp.exe',
-    sha256: '3a48cb955d55c8821b60ccbdbbc6f61bc958f2f3d3b7ad5eaf3d83a543293a27',
+    sha256: '66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a',
   },
   darwin: {
     url: `${RELEASE_BASE}/yt-dlp_macos`,
     filename: 'yt-dlp',
-    sha256: 'b82c3626952e6c14eaf654cc565866775ffd0b9ffb7021628ac59b42c2f4f244',
+    sha256: '0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202',
   },
   linux: {
     url: `${RELEASE_BASE}/yt-dlp`,
     filename: 'yt-dlp',
-    sha256: 'e5d57466682cfa9d61e9cf7c8a4f09b00f4a62af37d3bbdc4bcffdf63615feac',
+    sha256: '1fa6733c37ea6fb51c99ad8fe785e7b7e5f3246c9b980230329d4fb72ed8d4d6',
   },
 };
 const SOURCE_ASSET = {
   url: `${RELEASE_BASE}/yt-dlp.tar.gz`,
   filename: `yt-dlp-${YT_DLP_VERSION}-source.tar.gz`,
-  sha256: '7603f876b78d08b5fdd5bcd1d368590fde22c3c18e4ea00766d51120d21cc679',
+  sha256: '072aad4f2a7604e92155f61a275a4752dc64046c8f6d90df3710525d94cd37c1',
 };
 
 function download(url, dest, redirectsRemaining = 5) {

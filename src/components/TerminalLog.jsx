@@ -22,14 +22,21 @@ export default function TerminalLog({ lines }) {
         {lines.length === 0 ? (
           <span className="log-placeholder">Process details will appear here.</span>
         ) : (
-          lines.map((entry, index) => (
-            <div
-              key={`${index}-${entry.line.slice(0, 40)}`}
-              className={entry.stream === 'stderr' ? 'log-stderr' : ''}
-            >
-              {entry.line}
-            </div>
-          ))
+          lines.map((entry, index) => {
+            const className = entry.stream === 'stderr' ? 'log-stderr' : '';
+            if (entry.raw) {
+              return (
+                <pre key={`${index}-raw-stderr`} className={`${className} log-raw`}>
+                  {entry.line}
+                </pre>
+              );
+            }
+            return (
+              <div key={`${index}-${entry.line.slice(0, 40)}`} className={className}>
+                {entry.line}
+              </div>
+            );
+          })
         )}
       </div>
     </details>

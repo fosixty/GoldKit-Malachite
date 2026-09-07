@@ -2,10 +2,12 @@ const { spawn } = require('child_process');
 const path = require('path');
 const { app } = require('electron');
 const { buildArgs, FORMAT_ARGS } = require('./ytdlp-args');
+const { classifyDownloadError } = require('./download-errors');
+const { resolveJavaScriptRuntime } = require('./javascript-runtime');
 const { resolveMediaTools } = require('./media-tools');
 const { terminateProcessTree } = require('./process-control');
-const { isYouTubeUrl } = require('./validation');
 const { shouldRetryYouTubeMediaDownload } = require('./ytdlp-retry');
+const { sanitizeYtDlpDiagnostics } = require('./ytdlp-diagnostics');
 const MAX_LOG_LINE_LENGTH = 4096;
 const MAX_STREAM_BUFFER_LENGTH = 64 * 1024;
 
@@ -123,36 +125,42 @@ class YtDlpRunner {
   }
 
   prepare() {
-    return resolveMediaTools({
+    const common = {
       isPackaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
       appPath: app.getAppPath(),
       platform: process.platform,
       arch: process.arch,
+    };
+    const mediaTools = resolveMediaTools({
+      ...common,
       environment: process.env,
       logger: console,
     });
+    const javascriptRuntime = resolveJavaScriptRuntime(common);
+    return { ...mediaTools, javascriptRuntime };
   }
 
-  start({ url, outputDir, format, ffmpegLocation }, callbacks) {
+  start({ url, outputDir, format, ffmpegLocation, nodePath }, callbacks) {
     if (this.process) {
       throw new Error('A download is already in progress');
     }
 
     this.cancelled = false;
     const binaryPath = this.binaryPathResolver();
-    const args = buildArgs({ url, outputDir, format, ffmpegLocation });
+    const args = buildArgs({ url, outputDir, format, ffmpegLocation, nodePath });
 
     let title = null;
     let outputPath = null;
     let retryCount = 0;
     let finished = false;
+    let rawStderr = '';
 
     const handleLine = (line, stream) => {
       const trimmed = line.trim().slice(0, MAX_LOG_LINE_LENGTH);
       if (!trimmed) return;
 
-      callbacks.onLog({ line: trimmed, stream });
+      callbacks.onLog({ line: sanitizeYtDlpDiagnostics(trimmed), stream });
 
       const parsedTitle = parseTitleFromLog(trimmed);
       if (parsedTitle) title = parsedTitle;
@@ -192,6 +200,7 @@ class YtDlpRunner {
 
       child.stderr.on('data', (data) => {
         const text = data.toString();
+        rawStderr += text;
         stderrTail = `${stderrTail}${text}`.slice(-MAX_STREAM_BUFFER_LENGTH);
         stderrBuffer += text;
         if (stderrBuffer.length > MAX_STREAM_BUFFER_LENGTH && !stderrBuffer.includes('\n')) {
@@ -207,6 +216,8 @@ class YtDlpRunner {
         if (attemptSettled || finished) return;
         attemptSettled = true;
         if (this.process === child) this.process = null;
+        if (stdoutBuffer) handleLine(stdoutBuffer, 'stdout');
+        if (stderrBuffer) handleLine(stderrBuffer, 'stderr');
 
         if (this.cancelled) {
           finished = true;
@@ -242,17 +253,14 @@ class YtDlpRunner {
         }
 
         finished = true;
-        let message = 'The download or media processing step failed.';
-        if (/requested format is not available/i.test(stderrTail)) {
-          message = 'A supported media format is not available for this URL.';
-        } else if (/age.?restricted|private video|video unavailable|not available/i.test(stderrTail)) {
-          message = 'This media is unavailable or requires access that Malachite does not support.';
-        } else if (/HTTP Error 403|Forbidden/i.test(stderrTail) && isYouTubeUrl(url)) {
-          message = 'YouTube rejected the media request after a retry. Try again later or update Malachite if the problem continues.';
-        } else if (/ffmpeg|ffprobe|merge/i.test(stderrTail)) {
-          message = 'Malachite could not process or merge the downloaded media.';
-        }
-        callbacks.onError({ code, message, title, outputPath });
+        const error = classifyDownloadError({ stderr: rawStderr, url });
+        callbacks.onError({
+          ...error,
+          exitCode: code,
+          rawStderr: sanitizeYtDlpDiagnostics(rawStderr),
+          mediaTitle: title,
+          outputPath,
+        });
       });
 
       child.on('error', (err) => {
@@ -260,10 +268,14 @@ class YtDlpRunner {
         attemptSettled = true;
         finished = true;
         if (this.process === child) this.process = null;
-        const message = err.code === 'EACCES' || err.code === 'EPERM'
-          ? 'Malachite cannot run its bundled media tools. Reinstall the app and check system security settings.'
-          : 'Malachite could not start the download process.';
-        callbacks.onError({ code: -1, message, title, outputPath });
+        const error = classifyDownloadError({ processError: err, url });
+        callbacks.onError({
+          ...error,
+          exitCode: -1,
+          rawStderr: sanitizeYtDlpDiagnostics(rawStderr),
+          mediaTitle: title,
+          outputPath,
+        });
       });
     };
 

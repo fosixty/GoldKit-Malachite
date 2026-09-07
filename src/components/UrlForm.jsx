@@ -17,7 +17,7 @@ export default function UrlForm({
   outputDir,
   onBrowse,
   isDownloading,
-  errorMessage,
+  error,
   inputRef,
 }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -82,10 +82,10 @@ export default function UrlForm({
           <OutputPicker outputDir={outputDir} onBrowse={onBrowse} disabled={isDownloading} />
         </div>
 
-        {errorMessage && (
+        {error && (
           <div className="inline-error" role="alert">
-            <strong>Couldn’t download.</strong>
-            <span>{errorMessage}</span>
+            <strong>{error.title}</strong>
+            <span>{error.message}</span>
           </div>
         )}
 

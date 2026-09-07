@@ -41,7 +41,7 @@ export default function App() {
   const [activeFormat, setActiveFormat] = useState('audio');
   const [logLines, setLogLines] = useState([]);
   const [history, setHistory] = useState([]);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [downloadError, setDownloadError] = useState(null);
   const urlInputRef = useRef(null);
 
   const refreshHistory = useCallback(async () => {
@@ -88,9 +88,17 @@ export default function App() {
     const unsubError = window.api.onError((data) => {
       setIsDownloading(false);
       setStatus('failed');
-      setErrorMessage(data?.message || 'The download or media processing step failed.');
-      if (data?.title) setActiveTitle(data.title);
-      if (data?.message) {
+      setDownloadError({
+        title: data?.title || 'Couldn’t download.',
+        message: data?.message || 'The download or media processing step failed.',
+      });
+      if (data?.mediaTitle) setActiveTitle(data.mediaTitle);
+      if (data?.rawStderr) {
+        setLogLines((previous) => [
+          ...previous.filter((entry) => entry.stream !== 'stderr'),
+          { line: data.rawStderr, stream: 'stderr', raw: true },
+        ]);
+      } else if (data?.message) {
         setLogLines((previous) => [
           ...previous,
           { line: `Error: ${data.message}`, stream: 'stderr' },
@@ -115,7 +123,7 @@ export default function App() {
       if (!pasted || !isHttpUrl(pasted) || isDownloading) return;
       event.preventDefault();
       setUrl(pasted);
-      setErrorMessage('');
+      setDownloadError(null);
       urlInputRef.current?.focus();
     };
 
@@ -142,7 +150,7 @@ export default function App() {
     setStatus('downloading');
     setProgress({ percent: 0, speed: null, eta: null, downloadedSize: null, totalSize: null });
     setLogLines([]);
-    setErrorMessage('');
+    setDownloadError(null);
 
     if (!window.api) return;
 
@@ -152,7 +160,10 @@ export default function App() {
     } catch (error) {
       setIsDownloading(false);
       setStatus('failed');
-      setErrorMessage(error.message || 'Malachite could not start the download.');
+      setDownloadError({
+        title: 'Couldn’t start download',
+        message: error.message || 'Malachite could not start the download.',
+      });
       setLogLines((previous) => [
         ...previous,
         { line: `Error: ${error.message}`, stream: 'stderr' },
@@ -171,7 +182,7 @@ export default function App() {
   };
 
   const handleRetry = (item) => {
-    setErrorMessage('');
+    setDownloadError(null);
     startDownload({ nextUrl: item.url, nextFormat: item.format });
   };
 
@@ -205,7 +216,7 @@ export default function App() {
           url={url}
           onUrlChange={(nextUrl) => {
             setUrl(nextUrl);
-            setErrorMessage('');
+            setDownloadError(null);
           }}
           onDownload={() => startDownload()}
           format={format}
@@ -213,7 +224,7 @@ export default function App() {
           outputDir={outputDir}
           onBrowse={handleBrowse}
           isDownloading={isDownloading}
-          errorMessage={errorMessage}
+          error={downloadError}
           inputRef={urlInputRef}
         />
 

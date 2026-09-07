@@ -17,7 +17,7 @@ const FORMAT_ARGS = {
   best: ['-f', 'bv*+ba/b'],
 };
 
-function buildArgs({ url, outputDir, format, ffmpegLocation }) {
+function buildArgs({ url, outputDir, format, ffmpegLocation, nodePath }) {
   const formatArgs = FORMAT_ARGS[format];
   if (!formatArgs) {
     throw new Error('Unsupported download format');
@@ -25,10 +25,17 @@ function buildArgs({ url, outputDir, format, ffmpegLocation }) {
   if (typeof ffmpegLocation !== 'string' || !path.isAbsolute(ffmpegLocation)) {
     throw new Error('A trusted absolute FFmpeg location is required');
   }
+  if (typeof nodePath !== 'string' || !path.isAbsolute(nodePath)) {
+    throw new Error('A trusted absolute Node.js executable is required');
+  }
   const outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
 
   return [
     '--ignore-config',
+    '--verbose',
+    '--no-js-runtimes',
+    '--js-runtimes',
+    `node:${nodePath}`,
     '--ffmpeg-location',
     ffmpegLocation,
     ...formatArgs,

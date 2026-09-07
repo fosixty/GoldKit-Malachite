@@ -170,9 +170,15 @@ test('packaging includes external FFmpeg resources and process spawning never en
   assert.match(packageJson.scripts['dist:mac'], /--publish never$/);
   const buildResource = packageJson.build.extraResources.find((item) => item.from === 'build');
   assert.ok(buildResource.filter.includes('ffmpeg/source/**/*'));
+  assert.ok(packageJson.build.extraResources.some((item) => item.from === 'legal/node'));
   assert.ok(
     packageJson.build.win.extraResources.some(
       (item) => item.from === 'build/ffmpeg/win32-x64'
+    )
+  );
+  assert.ok(
+    packageJson.build.win.extraResources.some(
+      (item) => item.from === 'build/node/win32-x64'
     )
   );
   assert.ok(
@@ -185,17 +191,28 @@ test('packaging includes external FFmpeg resources and process spawning never en
       (item) => item.from === 'build/ffmpeg/darwin-arm64'
     )
   );
+  assert.ok(
+    packageJson.build.mac.extraResources.some(
+      (item) => item.from === 'build/node/darwin-x64'
+    )
+  );
+  assert.ok(
+    packageJson.build.mac.extraResources.some(
+      (item) => item.from === 'build/node/darwin-arm64'
+    )
+  );
   assert.equal(
     packageJson.build.mac.x64ArchFiles,
-    'Contents/Resources/build/ffmpeg/**/*'
+    'Contents/Resources/build/{ffmpeg,node}/**/*'
   );
+  assert.equal(JSON.stringify(packageJson.build).toLowerCase().includes('deno'), false);
 
   const runnerSource = fs.readFileSync(path.join(__dirname, '..', 'electron', 'ytdlp.js'), 'utf8');
   assert.doesNotMatch(runnerSource, /shell:\s*true/);
   assert.match(runnerSource, /shell:\s*false/);
 });
 
-test('cancellation terminates the Windows yt-dlp and FFmpeg process tree without a shell', () => {
+test('cancellation terminates the Windows yt-dlp descendant process tree without a shell', () => {
   const calls = [];
   let errorHandler;
   let fallbackKilled = false;

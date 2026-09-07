@@ -6,14 +6,15 @@ Open-source Electron app that wraps [yt-dlp](https://github.com/yt-dlp/yt-dlp) f
 
 - **Node.js 20+**
 
-Packaged Windows and macOS builds include verified FFmpeg and FFprobe binaries;
-users do not need to install them separately.
+Packaged Windows and macOS builds include verified yt-dlp, Node.js, FFmpeg, and
+FFprobe binaries; users do not need to install them separately.
 
 ## Setup
 
 ```bash
 npm install
 npm run fetch-ytdlp
+npm run fetch-node
 npm run fetch-ffmpeg
 ```
 
@@ -29,6 +30,14 @@ its platform-specific SHA-256 digest before installing it:
 You can also place a manually built binary in `build/` using the same filenames.
 When updating the pinned version in `scripts/fetch-ytdlp.js`, copy hashes only from
 the release's signed `SHA2-256SUMS` manifest.
+
+`fetch-node` downloads the pinned official Node.js 24.20.0 LTS archive, verifies both the
+archive and extracted executable SHA-256 hashes, and installs only the native
+runtime under `build/node/<platform>-<architecture>/`. Malachite passes this exact
+absolute path to yt-dlp with `--js-runtimes`; it never relies on Node.js from PATH.
+The official yt-dlp executables already bundle the matching `yt-dlp-ejs` scripts,
+so no remote EJS component download is enabled. yt-dlp invokes Node.js with its
+permission model enabled and no filesystem, network, child-process, or worker grants.
 
 `fetch-ffmpeg` downloads the pinned FFmpeg 8.1.2 archive and official source,
 verifies the archive and extracted executable SHA-256 hashes, and extracts only
@@ -46,7 +55,7 @@ This starts the Vite dev server and launches Electron. The app spawns the yt-dlp
 
 Development state is stored in the gitignored `.dev-data/` directory instead of
 the installed application's real profile. `npm run dev` verifies the pinned
-`yt-dlp`, FFmpeg, FFprobe, and source archives and downloads them automatically
+`yt-dlp`, Node.js, FFmpeg, FFprobe, and source archives and downloads them automatically
 when missing. These commands work from Git Bash, PowerShell, and a regular
 terminal.
 
@@ -79,9 +88,9 @@ npm run dist:mac
 npm run dist
 ```
 
-Packaged apps resolve yt-dlp and the matching FFmpeg/FFprobe pair from
+Packaged apps resolve yt-dlp, Node.js, and the matching FFmpeg/FFprobe pair from
 `resources/build/` via Electron Builder `extraResources`. Windows releases target
-x64. The universal macOS DMG contains separate native x64 and arm64 media-tool
+x64. The universal macOS DMG contains separate native x64 and arm64 runtime/tool
 pairs and chooses the pair matching the running Electron architecture.
 
 **Note:** macOS `.dmg` builds require a Mac. Windows `.exe` builds run on Windows.
@@ -105,6 +114,7 @@ cd GoldKit-Malachite
 ```bash
 npm install
 npm run fetch-ytdlp
+npm run fetch-node -- --all-darwin
 npm run fetch-ffmpeg
 npm run dist:mac
 ```

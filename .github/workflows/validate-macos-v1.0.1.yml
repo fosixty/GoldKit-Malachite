@@ -1,0 +1,170 @@
+name: Validate macOS v1.0.1 DMG
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: validate-macos-v1.0.1-${{ github.ref }}
+  cancel-in-progress: false
+
+# This workflow must never write to a GitHub Release. It only reads the checkout
+# and uploads the finished DMG to the workflow run as an Actions artifact.
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: v1.0.1
+  DMG_PATH: release/Malachite-v1.0.1-macOS.dmg
+
+jobs:
+  build-macos-dmg:
+    name: Build and verify universal macOS DMG
+    runs-on: macos-14
+    timeout-minutes: 45
+    env:
+      # The manual-test build is intentionally unsigned. Prevent electron-builder
+      # from discovering an identity that happens to be installed on the runner.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify v1.0.1 application version
+        run: npm run release:check -- "$RELEASE_TAG"
+
+      - name: Run automated tests
+        run: npm test
+
+      - name: Build universal macOS DMG
+        run: npm run dist:mac
+
+      - name: Verify packaged application and resources
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f "$DMG_PATH"
+
+          mount_point="$RUNNER_TEMP/malachite-v1.0.1-dmg"
+          mkdir -p "$mount_point"
+          hdiutil attach "$DMG_PATH" -readonly -nobrowse -mountpoint "$mount_point"
+          trap 'hdiutil detach "$mount_point"' EXIT
+
+          app="$mount_point/Malachite.app"
+          resources="$app/Contents/Resources"
+          plist="$app/Contents/Info.plist"
+          executable="$app/Contents/MacOS/Malachite"
+
+          test -d "$app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "1.0.1"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" = "1.0.1"
+
+          architectures="$(lipo -archs "$executable")"
+          [[ " $architectures " == *" x86_64 "* ]]
+          [[ " $architectures " == *" arm64 "* ]]
+
+          require_architecture() {
+            local file="$1"
+            local expected="$2"
+            local actual
+            actual="$(lipo -archs "$file")"
+            [[ " $actual " == *" $expected "* ]]
+          }
+
+          require_architecture "$resources/build/yt-dlp" x86_64
+          require_architecture "$resources/build/yt-dlp" arm64
+          require_architecture "$resources/build/node/darwin-x64/node" x86_64
+          require_architecture "$resources/build/node/darwin-arm64/node" arm64
+          require_architecture "$resources/build/ffmpeg/darwin-x64/ffmpeg" x86_64
+          require_architecture "$resources/build/ffmpeg/darwin-x64/ffprobe" x86_64
+          require_architecture "$resources/build/ffmpeg/darwin-arm64/ffmpeg" arm64
+          require_architecture "$resources/build/ffmpeg/darwin-arm64/ffprobe" arm64
+
+          APP_RESOURCES="$resources" node <<'NODE'
+          const assert = require('node:assert/strict');
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { ASSETS: ytDlpAssets, SOURCE_ASSET: ytDlpSource } = require('./scripts/fetch-ytdlp');
+          const { NODE_ASSETS } = require('./scripts/node-assets');
+          const {
+            PLATFORM_ASSETS: ffmpegAssets,
+            SOURCE_ASSET: ffmpegSource,
+          } = require('./scripts/ffmpeg-assets');
+
+          const resources = process.env.APP_RESOURCES;
+          const hash = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const verify = (relativePath, expectedHash, executable = false) => {
+            const file = path.join(resources, ...relativePath.split('/'));
+            assert.equal(hash(file), expectedHash, `${relativePath} has the expected SHA-256`);
+            if (executable) {
+              assert.ok(fs.statSync(file).mode & 0o111, `${relativePath} is executable`);
+            }
+          };
+
+          verify('build/yt-dlp', ytDlpAssets.darwin.sha256, true);
+          verify(`build/${ytDlpSource.filename}`, ytDlpSource.sha256);
+
+          for (const platform of ['darwin-x64', 'darwin-arm64']) {
+            const node = NODE_ASSETS[platform];
+            verify(`build/node/${platform}/${node.executable}`, node.executableSha256, true);
+
+            for (const tool of Object.values(ffmpegAssets[platform].tools)) {
+              verify(`build/ffmpeg/${platform}/${tool.filename}`, tool.sha256, true);
+            }
+          }
+          verify(`build/ffmpeg/source/${ffmpegSource.filename}`, ffmpegSource.sha256);
+          NODE
+
+          for file in \
+            legal/licenses.html \
+            legal/LEGAL.md \
+            legal/THIRD_PARTY_NOTICES.md \
+            legal/COMPLIANCE.md \
+            legal/LICENSE \
+            legal/yt-dlp/LICENSE \
+            legal/yt-dlp/THIRD_PARTY_LICENSES.txt \
+            legal/javascript/REACT-LICENSE \
+            legal/ffmpeg/BUILD_INFO.md \
+            legal/ffmpeg/COPYING.GPLv3 \
+            legal/node/BUILD_INFO.md \
+            legal/node/LICENSE; do
+            test -s "$resources/$file"
+          done
+
+          cmp legal/licenses.html "$resources/legal/licenses.html"
+          cmp LEGAL.md "$resources/legal/LEGAL.md"
+          cmp THIRD_PARTY_NOTICES.md "$resources/legal/THIRD_PARTY_NOTICES.md"
+          cmp COMPLIANCE.md "$resources/legal/COMPLIANCE.md"
+          cmp LICENSE "$resources/legal/LICENSE"
+          for file in \
+            yt-dlp/LICENSE \
+            yt-dlp/THIRD_PARTY_LICENSES.txt \
+            javascript/REACT-LICENSE \
+            ffmpeg/BUILD_INFO.md \
+            node/BUILD_INFO.md \
+            node/LICENSE; do
+            cmp "legal/$file" "$resources/legal/$file"
+          done
+          cmp LICENSE "$resources/legal/ffmpeg/COPYING.GPLv3"
+          hdiutil detach "$mount_point"
+          trap - EXIT
+          hdiutil verify "$DMG_PATH"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: malachite-macos-v1.0.1-manual-test
+          path: ${{ env.DMG_PATH }}
+          if-no-files-found: error
+          retention-days: 14
